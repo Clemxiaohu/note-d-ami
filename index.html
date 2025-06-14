@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes d'amis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translate3d(-50%, 20px, 0);
+            }
+            to {
+                opacity: 1;
+                transform: translate3d(-50%, 0, 0);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-purple-100 to-blue-200 p-4 font-sans flex flex-col items-center">
+
+    <!-- User ID Display -->
+    <div class="w-full max-w-4xl bg-white p-4 rounded-xl shadow-lg mb-6 text-center">
+        <p class="text-gray-600 text-sm">
+            Votre identifiant d'utilisateur (pour le partage) : <span id="userIdDisplay" class="font-mono text-blue-600 break-all">Chargement...</span>
+        </p>
+    </div>
+
+    <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 mb-8 text-center drop-shadow-md">
+        Notes d'amis <span class="text-purple-600">★</span>
+    </h1>
+
+    <!-- Add Friend Section -->
+    <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-lg mb-8 border border-purple-200">
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Ajouter un nouvel ami</h2>
+        <div class="flex flex-col sm:flex-row gap-4">
+            <input
+                type="text"
+                id="newFriendNameInput"
+                placeholder="Nom de l'ami"
+                class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 ease-in-out shadow-sm"
+                aria-label="Nom du nouvel ami"
+            />
+            <button
+                id="addFriendButton"
+                class="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105"
+            >
+                Ajouter
+            </button>
+        </div>
+    </div>
+
+    <!-- Friend List -->
+    <div id="friendListContainer" class="w-full max-w-4xl">
+        <p id="noFriendsMessage" class="text-center text-gray-600 text-lg mt-10 hidden">
+            Pas encore d'amis à noter ! Ajoutez-en un ci-dessus.
+        </p>
+        <div id="friendsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Friend cards will be inserted here by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Custom Modal for Messages -->
+    <div id="messageModal" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg z-50 animate-fade-in-up hidden">
+        <span id="modalMessageText"></span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Config (using your provided config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBA6fNUNWG6lfyDJUfiTTGlJM8ePsp463w",
+            authDomain: "note-d-ami.firebaseapp.com",
+            projectId: "note-d-ami",
+            storageBucket: "note-d-ami.firebasestorage.app",
+            messagingSenderId: "243348637632",
+            appId: "1:243348637632:web:971dcdcf44d6f812d6ea25",
+            measurementId: "G-8GF49PE6R9"
+        };
+        const canvasAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-friend-rater-app';
+
+        // Firebase instances
+        let app;
+        let db;
+        let auth;
+        let currentUserId = null;
+
+        // Application state (plain JavaScript variables)
+        let friends = [];
+        const criteria = ["Humour", "Soutien", "Fiabilité", "Gentillesse"];
+        let isLoading = true;
+        let appError = null;
+
+        // DOM elements
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const newFriendNameInput = document.getElementById('newFriendNameInput');
+        const addFriendButton = document.getElementById('addFriendButton');
+        const friendListContainer = document.getElementById('friendsGrid');
+        const noFriendsMessage = document.getElementById('noFriendsMessage');
+        const messageModal = document.getElementById('messageModal');
+        const modalMessageText = document.getElementById('modalMessageText');
+
+        // --- Utility Functions ---
+        const generateUUID = () => crypto.randomUUID();
+
+        const showMessage = (message) => {
+            modalMessageText.textContent = message;
+            messageModal.classList.remove('hidden');
+            setTimeout(() => {
+                messageModal.classList.add('hidden');
+            }, 3000);
+        };
+
+        const calculateAverageRating = (criteriaRatings) => {
+            const ratings = Object.values(criteriaRatings);
+            if (ratings.length === 0) return 0;
+            const sum = ratings.reduce((acc, val) => acc + val, 0);
+            return (sum / ratings.length).toFixed(1);
+        };
+
+        // --- Render Functions ---
+
+        const renderFriendList = () => {
+            friendListContainer.innerHTML = ''; // Clear existing content
+            if (friends.length === 0) {
+                noFriendsMessage.classList.remove('hidden');
+            } else {
+                noFriendsMessage.classList.add('hidden');
+                friends.forEach(friend => {
+                    friendListContainer.appendChild(createFriendCard(friend));
+                });
+            }
+        };
+
+        const createStarRatingElement = (friendId, criterionName, rating) => {
+            const container = document.createElement('div');
+            container.className = 'flex items-center space-x-1 text-yellow-400';
+            for (let i = 1; i <= 5; i++) {
+                const button = document.createElement('button');
+                button.textContent = '★';
+                button.className = `text-2xl focus:outline-none transition-transform transform ${
+                    i <= rating ? 'text-yellow-400 scale-105' : 'text-gray-300'
+                }`;
+                button.setAttribute('aria-label', `Note ${i} étoile sur 5 pour ${criterionName}`);
+                button.dataset.friendId = friendId;
+                button.dataset.criterionName = criterionName;
+                button.dataset.starValue = i;
+                button.addEventListener('click', handleStarRatingClick);
+                container.appendChild(button);
+            }
+            return container;
+        };
+
+        const createFriendCard = (friend) => {
+            const friendCard = document.createElement('div');
+            friendCard.className = 'bg-white p-6 rounded-xl shadow-lg border border-blue-200 transform transition-transform duration-300 hover:scale-[1.02]';
+            friendCard.dataset.friendId = friend.id;
+
+            let commentsHtml = '';
+            if (friend.comments && friend.comments.length > 0) {
+                const sortedComments = [...friend.comments].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                commentsHtml = sortedComments.map(comment => `
+                    <div class="bg-gray-50 p-3 rounded-lg shadow-sm border border-gray-200">
+                        <p class="text-gray-800 text-sm break-words">${comment.text}</p>
+                        <p class="text-gray-500 text-xs mt-1">
+                            ${new Date(comment.timestamp).toLocaleDateString()} à ${new Date(comment.timestamp).toLocaleTimeString()}
+                        </p>
+                    </div>
+                `).join('');
+            } else {
+                commentsHtml = '<p class="text-gray-500 text-sm">Aucun commentaire pour l\'instant.</p>';
+            }
+
+            friendCard.innerHTML = `
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+                    <h3 class="text-3xl font-bold text-gray-800">${friend.name}</h3>
+                    <button class="delete-friend-button text-red-500 hover:text-red-700 text-2xl" aria-label="Supprimer ${friend.name}" data-friend-id="${friend.id}">
+                        &times;
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    ${criteria.map(criterion => `
+                        <div class="flex items-center justify-between">
+                            <span class="text-lg font-medium text-gray-700">${criterion}:</span>
+                            <div id="stars-${friend.id}-${criterion}" class="star-rating-container"></div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="mt-6 pt-4 border-t border-gray-200 text-right">
+                    <span class="text-xl font-bold text-gray-800">
+                        Moyenne: <span class="text-green-600">${calculateAverageRating(friend.criteriaRatings)}</span> <span class="text-yellow-400">★</span>
+                    </span>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <h4 class="text-xl font-semibold text-gray-700 mb-3">Commentaires</h4>
+                    <div class="space-y-3 mb-4 max-h-40 overflow-y-auto pr-2">
+                        ${commentsHtml}
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <textarea
+                            class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 add-comment-textarea"
+                            rows="3"
+                            placeholder="Ajouter un commentaire..."
+                            aria-label="Ajouter un commentaire pour ${friend.name}"
+                            data-friend-id="${friend.id}"
+                        ></textarea>
+                        <button
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105 add-comment-button"
+                            data-friend-id="${friend.id}"
+                        >
+                            Poster un commentaire
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Append star rating elements after innerHTML is set
+            criteria.forEach(criterion => {
+                const starContainer = friendCard.querySelector(`#stars-${friend.id}-${criterion}`);
+                if (starContainer) {
+                    const rating = friend.criteriaRatings[criterion] || 0;
+                    starContainer.appendChild(createStarRatingElement(friend.id, criterion, rating));
+                }
+            });
+
+            return friendCard;
+        };
+
+        // --- Event Handlers ---
+
+        const handleAddFriend = async () => {
+            const newFriendName = newFriendNameInput.value.trim();
+            if (!newFriendName || !db || !currentUserId) {
+                showMessage("Veuillez entrer un nom pour l'ami.");
+                return;
+            }
+            if (friends.some(f => f.name.toLowerCase() === newFriendName.toLowerCase())) {
+                showMessage("Cet ami existe déjà !");
+                return;
+            }
+
+            try {
+                const initialRatings = criteria.reduce((acc, criterion) => {
+                    acc[criterion] = 0;
+                    return acc;
+                }, {});
+
+                await addDoc(collection(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`), {
+                    name: newFriendName,
+                    criteriaRatings: initialRatings,
+                    comments: [],
+                    createdAt: new Date(),
+                });
+                newFriendNameInput.value = '';
+                showMessage("Ami ajouté avec succès !");
+            } catch (e) {
+                console.error("Erreur lors de l'ajout de l'ami:", e);
+                showMessage("Erreur lors de l'ajout de l'ami.");
+            }
+        };
+
+        const handleStarRatingClick = async (event) => {
+            const { friendId, criterionName, starValue } = event.target.dataset;
+            if (!db || !currentUserId) {
+                showMessage("Erreur: Base de données non prête.");
+                return;
+            }
+            try {
+                const friendRef = doc(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`, friendId);
+                const friendToUpdate = friends.find(f => f.id === friendId);
+
+                if (friendToUpdate) {
+                    const updatedCriteriaRatings = {
+                        ...friendToUpdate.criteriaRatings,
+                        [criterionName]: parseInt(starValue, 10)
+                    };
+                    await updateDoc(friendRef, {
+                        criteriaRatings: updatedCriteriaRatings
+                    });
+                    showMessage("Notation mise à jour !");
+                }
+            } catch (e) {
+                console.error("Erreur lors de la mise à jour de la note:", e);
+                showMessage("Erreur lors de la mise à jour de la note.");
+            }
+        };
+
+        const handleDeleteFriend = async (event) => {
+            const friendId = event.target.dataset.friendId;
+            if (!db || !currentUserId) {
+                showMessage("Erreur: Base de données non prête.");
+                return;
+            }
+            try {
+                await deleteDoc(doc(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`, friendId));
+                showMessage("Ami supprimé !");
+            } catch (e) {
+                console.error("Erreur lors de la suppression de l'ami:", e);
+                showMessage("Erreur lors de la suppression de l'ami.");
+            }
+        };
+
+        const handleAddComment = async (event) => {
+            const friendId = event.target.dataset.friendId;
+            const commentTextarea = document.querySelector(`.add-comment-textarea[data-friend-id="${friendId}"]`);
+            const commentText = commentTextarea ? commentTextarea.value.trim() : '';
+
+            if (!commentText || !db || !currentUserId) {
+                showMessage("Veuillez entrer un commentaire.");
+                return;
+            }
+
+            try {
+                const friendRef = doc(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`, friendId);
+                const friendToUpdate = friends.find(f => f.id === friendId);
+
+                if (friendToUpdate) {
+                    const updatedComments = [
+                        ...(friendToUpdate.comments || []),
+                        {
+                            id: generateUUID(),
+                            text: commentText,
+                            userId: currentUserId,
+                            timestamp: new Date().toISOString()
+                        }
+                    ];
+                    await updateDoc(friendRef, {
+                        comments: updatedComments
+                    });
+                    if (commentTextarea) {
+                        commentTextarea.value = ''; // Clear the input
+                    }
+                    showMessage("Commentaire ajouté !");
+                }
+            } catch (e) {
+                console.error("Erreur lors de l'ajout du commentaire:", e);
+                showMessage("Erreur lors de l'ajout du commentaire.");
+            }
+        };
+
+        // --- Initialization ---
+
+        window.onload = async () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        userIdDisplay.textContent = currentUserId;
+                        // Now that we have a userId, set up the Firestore listener
+                        setupFirestoreListener();
+                    } else {
+                        if (initialAuthToken) {
+                            try {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } catch (e) {
+                                console.warn("Erreur lors de la connexion avec le jeton personnalisé, tentative de connexion anonyme:", e);
+                                try {
+                                    await signInAnonymously(auth);
+                                } catch (anonError) {
+                                    console.error("Erreur lors de la connexion anonyme:", anonError);
+                                    appError = "Échec de la connexion. Veuillez réessayer.";
+                                    renderAppStatus();
+                                }
+                            }
+                        } else {
+                            try {
+                                await signInAnonymously(auth);
+                            } catch (e) {
+                                console.error("Erreur lors de la connexion anonyme:", e);
+                                appError = "Échec de la connexion. Veuillez réessayer.";
+                                renderAppStatus();
+                            }
+                        }
+                    }
+                    isLoading = false;
+                    renderAppStatus();
+                });
+            } catch (e) {
+                console.error("Erreur lors de l'initialisation de Firebase:", e);
+                appError = "Échec de l'initialisation de l'application. Veuillez vérifier la configuration.";
+                isLoading = false;
+                renderAppStatus();
+            }
+        };
+
+        const setupFirestoreListener = () => {
+            if (!db || !currentUserId) return;
+
+            const friendsCollectionRef = collection(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`);
+            const q = query(friendsCollectionRef);
+
+            onSnapshot(q, (snapshot) => {
+                friends = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    comments: doc.data().comments || []
+                }));
+                renderFriendList(); // Re-render the list with updated data
+                isLoading = false;
+                renderAppStatus();
+            }, (err) => {
+                console.error("Erreur lors de la récupération des amis:", err);
+                appError = "Impossible de charger les amis. Veuillez réessayer.";
+                isLoading = false;
+                renderAppStatus();
+            });
+        };
+
+        const renderAppStatus = () => {
+            if (isLoading) {
+                // Display loading state (can be a spinner or text)
+                document.body.innerHTML = `
+                    <div class="flex items-center justify-center min-h-screen bg-gray-100 font-inter">
+                        <div class="text-xl text-gray-700">Chargement de l'application...</div>
+                    </div>
+                `;
+            } else if (appError) {
+                // Display error state
+                document.body.innerHTML = `
+                    <div class="flex items-center justify-center min-h-screen bg-red-100 font-inter">
+                        <div class="text-xl text-red-700 p-4 rounded-lg shadow-md">${appError}</div>
+                    </div>
+                `;
+            } else {
+                // If not loading and no error, assume main content is ready.
+                // Re-attach main elements to body if they were removed by error/loading state.
+                // A better approach for a production app would be to toggle visibility or use a dedicated loading/error overlay.
+                // For this example, we assume the initial HTML structure is in place and just update parts of it.
+                // If this is the initial load without error, the body HTML structure will already be there.
+                // If it was in an error/loading state, we would need to rebuild the main HTML.
+                // For simplicity, we just ensure elements are visible and update dynamic content.
+                document.getElementById('userIdDisplay').textContent = currentUserId;
+                renderFriendList(); // Ensure friend list is rendered
+            }
+        };
+
+        // Attach global event listeners for static elements
+        addFriendButton.addEventListener('click', handleAddFriend);
+
+        // Event delegation for dynamic elements (delete, stars, add comment)
+        friendListContainer.addEventListener('click', (event) => {
+            if (event.target.classList.contains('delete-friend-button')) {
+                handleDeleteFriend(event);
+            } else if (event.target.classList.contains('add-comment-button')) {
+                handleAddComment(event);
+            }
+            // Star rating clicks are handled by their individual listeners attached in createStarRatingElement
+        });
+
+    </script>
+</body>
+</html>
