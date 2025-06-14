@@ -38,6 +38,51 @@
         Notes d'amis <span class="text-purple-600">★</span>
     </h1>
 
+    <!-- Authentication Section -->
+    <div id="authSection" class="w-full max-w-md bg-white p-6 rounded-xl shadow-lg mb-8 border border-yellow-300">
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Connexion / Inscription</h2>
+        <div id="authInputs" class="flex flex-col gap-4 mb-4">
+            <input type="email" id="authEmail" placeholder="Email" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition duration-200 ease-in-out shadow-sm" aria-label="Email de connexion ou d'inscription" />
+            <input type="password" id="authPassword" placeholder="Mot de passe" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition duration-200 ease-in-out shadow-sm" aria-label="Mot de passe de connexion ou d'inscription" />
+        </div>
+        <div id="authButtons" class="flex flex-col sm:flex-row gap-4">
+            <button id="registerButton" class="bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105">
+                S'inscrire
+            </button>
+            <button id="loginButton" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105">
+                Se connecter
+            </button>
+            <button id="logoutButton" class="bg-gray-400 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-md hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105 hidden">
+                Se déconnecter
+            </button>
+        </div>
+        <p id="currentUserStatus" class="text-sm text-center text-gray-600 mt-4 hidden">Connecté en tant que: <span class="font-semibold" id="currentUserEmail"></span></p>
+    </div>
+
+    <!-- Manage Custom Criteria Section -->
+    <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-lg mb-8 border border-green-200">
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Gérer les critères de notation</h2>
+        <div class="flex flex-col sm:flex-row gap-4 mb-4">
+            <input
+                type="text"
+                id="newCriterionInput"
+                placeholder="Nouveau critère (ex: Sportivité)"
+                class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent transition duration-200 ease-in-out shadow-sm"
+                aria-label="Nom du nouveau critère"
+            />
+            <button
+                id="addCriterionButton"
+                class="bg-green-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105"
+            >
+                Ajouter Critère
+            </button>
+        </div>
+        <div id="criteriaList" class="space-y-2 mt-4 max-h-40 overflow-y-auto pr-2">
+            <!-- Custom criteria will be listed here -->
+            <p class="text-gray-500 text-sm" id="noCriteriaMessage">Aucun critère personnalisé ajouté.</p>
+        </div>
+    </div>
+
     <!-- Add Friend Section -->
     <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-lg mb-8 border border-purple-200">
         <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Ajouter un nouvel ami</h2>
@@ -58,15 +103,28 @@
         </div>
     </div>
 
-    <!-- Friend List -->
-    <div id="friendListContainer" class="w-full max-w-4xl">
-        <p id="noFriendsMessage" class="text-center text-gray-600 text-lg mt-10 hidden">
+    <!-- My Friends List -->
+    <div id="myFriendsSection" class="w-full max-w-4xl mb-12">
+        <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center drop-shadow-md">Mes Amis</h2>
+        <p id="noMyFriendsMessage" class="text-center text-gray-600 text-lg mt-10 hidden">
             Pas encore d'amis à noter ! Ajoutez-en un ci-dessus.
         </p>
-        <div id="friendsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Friend cards will be inserted here by JavaScript -->
+        <div id="myFriendsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- My friend cards will be inserted here by JavaScript -->
         </div>
     </div>
+
+    <!-- Public Friends List -->
+    <div id="publicFriendsSection" class="w-full max-w-4xl">
+        <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center drop-shadow-md">Amis Partagés Publiquement</h2>
+        <p id="noPublicFriendsMessage" class="text-center text-gray-600 text-lg mt-10 hidden">
+            Aucun ami n'a été partagé publiquement pour l'instant.
+        </p>
+        <div id="publicFriendsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Public friend cards will be inserted here by JavaScript -->
+        </div>
+    </div>
+
 
     <!-- Custom Modal for Messages -->
     <div id="messageModal" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg z-50 animate-fade-in-up hidden">
@@ -75,8 +133,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, setDoc, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Config (using your provided config)
         const firebaseConfig = {
@@ -95,10 +153,13 @@
         let db;
         let auth;
         let currentUserId = null;
+        let unsubscribeFirestore = []; // To store unsubscribe functions for Firestore listeners
 
         // Application state (plain JavaScript variables)
-        let friends = [];
-        const criteria = ["Humour", "Soutien", "Fiabilité", "Gentillesse"];
+        let myFriends = []; // Stores friends created by the current user
+        let publicFriends = []; // Stores friends marked as public by any user
+        let customCriteria = ["Humour", "Soutien", "Fiabilité", "Gentillesse"]; // Default criteria
+
         let isLoading = true;
         let appError = null;
 
@@ -106,10 +167,29 @@
         const userIdDisplay = document.getElementById('userIdDisplay');
         const newFriendNameInput = document.getElementById('newFriendNameInput');
         const addFriendButton = document.getElementById('addFriendButton');
-        const friendListContainer = document.getElementById('friendsGrid');
-        const noFriendsMessage = document.getElementById('noFriendsMessage');
-        const messageModal = document.getElementById('messageModal');
+        const myFriendsGrid = document.getElementById('myFriendsGrid');
+        const noMyFriendsMessage = document.getElementById('noMyFriendsMessage');
+        const publicFriendsGrid = document.getElementById('publicFriendsGrid');
+        const noPublicFriendsMessage = document.getElementById('noPublicFriendsMessage');
+        const messageModal = document.getElementById('messageModal'); // Corrected variable name
         const modalMessageText = document.getElementById('modalMessageText');
+
+        const newCriterionInput = document.getElementById('newCriterionInput');
+        const addCriterionButton = document.getElementById('addCriterionButton');
+        const criteriaListDiv = document.getElementById('criteriaList');
+        const noCriteriaMessage = document.getElementById('noCriteriaMessage');
+
+        // Auth elements
+        const authEmailInput = document.getElementById('authEmail');
+        const authPasswordInput = document.getElementById('authPassword');
+        const registerButton = document.getElementById('registerButton');
+        const loginButton = document.getElementById('loginButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const currentUserStatus = document.getElementById('currentUserStatus');
+        const currentUserEmail = document.getElementById('currentUserEmail');
+        const authInputs = document.getElementById('authInputs');
+        const authButtons = document.getElementById('authButtons');
+
 
         // --- Utility Functions ---
         const generateUUID = () => crypto.randomUUID();
@@ -118,32 +198,97 @@
             modalMessageText.textContent = message;
             messageModal.classList.remove('hidden');
             setTimeout(() => {
-                messageModal.classList.add('hidden');
+                messageModal.classList.add('hidden'); // Corrected variable name
             }, 3000);
         };
 
         const calculateAverageRating = (criteriaRatings) => {
+            if (!criteriaRatings) return 0; // Handle case where ratings might be undefined
             const ratings = Object.values(criteriaRatings);
             if (ratings.length === 0) return 0;
             const sum = ratings.reduce((acc, val) => acc + val, 0);
             return (sum / ratings.length).toFixed(1);
         };
 
+        // --- Auth UI Management ---
+        const updateAuthUI = (user) => {
+            if (user && user.email) {
+                // Logged in with email
+                authInputs.classList.add('hidden');
+                registerButton.classList.add('hidden');
+                loginButton.classList.add('hidden');
+                logoutButton.classList.remove('hidden');
+                currentUserStatus.classList.remove('hidden');
+                currentUserEmail.textContent = user.email;
+                showMessage(`Connecté en tant que ${user.email}`);
+            } else if (user && user.isAnonymous) {
+                // Logged in anonymously
+                authInputs.classList.remove('hidden');
+                registerButton.classList.remove('hidden');
+                loginButton.classList.remove('hidden');
+                logoutButton.classList.add('hidden'); // No logout button for anonymous unless user explicitly logs out
+                currentUserStatus.classList.add('hidden'); // No email to show
+                showMessage("Connecté en mode anonyme");
+            } else {
+                // Not logged in (shouldn't happen with anonymous fallback, but for completeness)
+                authInputs.classList.remove('hidden');
+                registerButton.classList.remove('hidden');
+                loginButton.classList.remove('hidden');
+                logoutButton.classList.add('hidden');
+                currentUserStatus.classList.add('hidden');
+            }
+        };
+
+
         // --- Render Functions ---
 
-        const renderFriendList = () => {
-            friendListContainer.innerHTML = ''; // Clear existing content
-            if (friends.length === 0) {
-                noFriendsMessage.classList.remove('hidden');
+        const renderCriteriaList = () => {
+            criteriaListDiv.innerHTML = ''; // Clear existing content
+            // Only show truly custom ones in the management list
+            const customOnlyCriteria = customCriteria.filter(criterion => !["Humour", "Soutien", "Fiabilité", "Gentillesse"].includes(criterion));
+
+            if (customOnlyCriteria.length === 0) {
+                noCriteriaMessage.classList.remove('hidden');
             } else {
-                noFriendsMessage.classList.add('hidden');
-                friends.forEach(friend => {
-                    friendListContainer.appendChild(createFriendCard(friend));
+                noCriteriaMessage.classList.add('hidden');
+                customOnlyCriteria.forEach(criterion => {
+                    const criterionItem = document.createElement('div');
+                    criterionItem.className = 'flex justify-between items-center bg-gray-50 p-2 rounded-md border border-gray-200';
+                    criterionItem.innerHTML = `
+                            <span class="text-gray-800">${criterion}</span>
+                            <button class="delete-criterion-button text-red-500 hover:text-red-700 text-lg" data-criterion-name="${criterion}">&times;</button>
+                        `;
+                    criteriaListDiv.appendChild(criterionItem);
                 });
             }
         };
 
-        const createStarRatingElement = (friendId, criterionName, rating) => {
+
+        const renderFriendLists = () => {
+            // Render My Friends
+            myFriendsGrid.innerHTML = '';
+            if (myFriends.length === 0) {
+                noMyFriendsMessage.classList.remove('hidden');
+            } else {
+                noMyFriendsMessage.classList.add('hidden');
+                myFriends.forEach(friend => {
+                    myFriendsGrid.appendChild(createFriendCard(friend, true)); // true indicates it's "My Friend" card
+                });
+            }
+
+            // Render Public Friends
+            publicFriendsGrid.innerHTML = '';
+            if (publicFriends.length === 0) {
+                noPublicFriendsMessage.classList.remove('hidden');
+            } else {
+                noPublicFriendsMessage.classList.add('hidden');
+                publicFriends.forEach(friend => {
+                    publicFriendsGrid.appendChild(createFriendCard(friend, false)); // false indicates it's a "Public Friend" card
+                });
+            }
+        };
+
+        const createStarRatingElement = (friendId, criterionName, rating, isMyFriendCard) => {
             const container = document.createElement('div');
             container.className = 'flex items-center space-x-1 text-yellow-400';
             for (let i = 1; i <= 5; i++) {
@@ -153,16 +298,22 @@
                     i <= rating ? 'text-yellow-400 scale-105' : 'text-gray-300'
                 }`;
                 button.setAttribute('aria-label', `Note ${i} étoile sur 5 pour ${criterionName}`);
-                button.dataset.friendId = friendId;
-                button.dataset.criterionName = criterionName;
-                button.dataset.starValue = i;
-                button.addEventListener('click', handleStarRatingClick);
+                // Only allow rating change on the user's own friends
+                if (isMyFriendCard) {
+                    button.dataset.friendId = friendId;
+                    button.dataset.criterionName = criterionName;
+                    button.dataset.starValue = i;
+                    button.addEventListener('click', handleStarRatingClick);
+                } else {
+                    // Disable clicks for public friends (read-only)
+                    button.style.cursor = 'default';
+                }
                 container.appendChild(button);
             }
             return container;
         };
 
-        const createFriendCard = (friend) => {
+        const createFriendCard = (friend, isMyFriendCard) => {
             const friendCard = document.createElement('div');
             friendCard.className = 'bg-white p-6 rounded-xl shadow-lg border border-blue-200 transform transition-transform duration-300 hover:scale-[1.02]';
             friendCard.dataset.friendId = friend.id;
@@ -182,15 +333,35 @@
                 commentsHtml = '<p class="text-gray-500 text-sm">Aucun commentaire pour l\'instant.</p>';
             }
 
-            friendCard.innerHTML = `
+            const headerContent = isMyFriendCard ? `
                 <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
                     <h3 class="text-3xl font-bold text-gray-800">${friend.name}</h3>
                     <button class="delete-friend-button text-red-500 hover:text-red-700 text-2xl" aria-label="Supprimer ${friend.name}" data-friend-id="${friend.id}">
                         &times;
                     </button>
                 </div>
+            ` : `
+                <div class="flex items-center mb-4 pb-2 border-b border-gray-200">
+                    <h3 class="text-3xl font-bold text-gray-800 mr-4">${friend.name}</h3>
+                    <span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">Public</span>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">Créé par: <span class="font-mono text-blue-600 break-all text-xs">${friend.creatorUserId}</span></p>
+            `;
+
+            const shareToggleHtml = isMyFriendCard ? `
+                <div class="mt-4 pt-4 border-t border-gray-200 flex items-center justify-end">
+                    <label for="shareToggle-${friend.id}" class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="shareToggle-${friend.id}" class="sr-only peer" ${friend.isPublic ? 'checked' : ''} data-friend-id="${friend.id}">
+                        <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span class="ml-3 text-sm font-medium text-gray-900">Partager publiquement</span>
+                    </label>
+                </div>
+            ` : '';
+
+            friendCard.innerHTML = `
+                ${headerContent}
                 <div class="space-y-4">
-                    ${criteria.map(criterion => `
+                    ${customCriteria.map(criterion => `
                         <div class="flex items-center justify-between">
                             <span class="text-lg font-medium text-gray-700">${criterion}:</span>
                             <div id="stars-${friend.id}-${criterion}" class="star-rating-container"></div>
@@ -209,37 +380,137 @@
                     <div class="space-y-3 mb-4 max-h-40 overflow-y-auto pr-2">
                         ${commentsHtml}
                     </div>
-                    <div class="flex flex-col gap-2">
-                        <textarea
-                            class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 add-comment-textarea"
-                            rows="3"
-                            placeholder="Ajouter un commentaire..."
-                            aria-label="Ajouter un commentaire pour ${friend.name}"
-                            data-friend-id="${friend.id}"
-                        ></textarea>
-                        <button
-                            class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105 add-comment-button"
-                            data-friend-id="${friend.id}"
-                        >
-                            Poster un commentaire
-                        </button>
-                    </div>
+                    ${isMyFriendCard ? `
+                        <div class="flex flex-col gap-2">
+                            <textarea
+                                class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 add-comment-textarea"
+                                rows="3"
+                                placeholder="Ajouter un commentaire..."
+                                aria-label="Ajouter un commentaire pour ${friend.name}"
+                                data-friend-id="${friend.id}"
+                            ></textarea>
+                            <button
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105 add-comment-button"
+                                data-friend-id="${friend.id}"
+                            >
+                                Poster un commentaire
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
+                ${shareToggleHtml}
             `;
 
             // Append star rating elements after innerHTML is set
-            criteria.forEach(criterion => {
+            customCriteria.forEach(criterion => {
                 const starContainer = friendCard.querySelector(`#stars-${friend.id}-${criterion}`);
                 if (starContainer) {
-                    const rating = friend.criteriaRatings[criterion] || 0;
-                    starContainer.appendChild(createStarRatingElement(friend.id, criterion, rating));
+                    const rating = (friend.criteriaRatings && friend.criteriaRatings[criterion]) || 0;
+                    starContainer.appendChild(createStarRatingElement(friend.id, criterion, rating, isMyFriendCard));
                 }
             });
 
             return friendCard;
         };
 
-        // --- Event Handlers ---
+        // --- Authentication Handlers ---
+
+        const handleRegister = async () => {
+            const email = authEmailInput.value;
+            const password = authPasswordInput.value;
+            if (!email || !password) {
+                showMessage("Veuillez entrer un email et un mot de passe.");
+                return;
+            }
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                showMessage("Inscription réussie ! Vous êtes connecté.");
+                authEmailInput.value = '';
+                authPasswordInput.value = '';
+            } catch (error) {
+                console.error("Erreur d'inscription:", error);
+                showMessage(`Erreur d'inscription: ${error.message}`);
+            }
+        };
+
+        const handleLogin = async () => {
+            const email = authEmailInput.value;
+            const password = authPasswordInput.value;
+            if (!email || !password) {
+                showMessage("Veuillez entrer un email et un mot de passe.");
+                return;
+            }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showMessage("Connexion réussie !");
+                authEmailInput.value = '';
+                authPasswordInput.value = '';
+            } catch (error) {
+                console.error("Erreur de connexion:", error);
+                showMessage(`Erreur de connexion: ${error.message}`);
+            }
+        };
+
+        const handleLogout = async () => {
+            try {
+                await signOut(auth);
+                showMessage("Déconnexion réussie !");
+                // After logout, Firebase will trigger onAuthStateChanged with null user,
+                // which will then sign in anonymously again.
+            } catch (error) {
+                console.error("Erreur de déconnexion:", error);
+                showMessage(`Erreur de déconnexion: ${error.message}`);
+            }
+        };
+
+
+        // --- Data Interaction Handlers ---
+
+        const handleAddCriterion = async () => {
+            const newCriterionName = newCriterionInput.value.trim();
+            if (!newCriterionName || !db || !currentUserId) {
+                showMessage("Veuillez entrer un nom pour le critère.");
+                return;
+            }
+            if (customCriteria.includes(newCriterionName)) {
+                showMessage("Ce critère existe déjà !");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, `artifacts/${canvasAppId}/users/${currentUserId}/customCriteria`), {
+                    name: newCriterionName,
+                    createdAt: new Date(),
+                });
+                newCriterionInput.value = '';
+                showMessage("Critère ajouté avec succès !");
+            } catch (e) {
+                console.error("Erreur lors de l'ajout du critère:", e);
+                showMessage("Erreur lors de l'ajout du critère.");
+            }
+        };
+
+        const handleDeleteCriterion = async (event) => {
+            const criterionName = event.target.dataset.criterionName;
+            if (!criterionName || !db || !currentUserId) {
+                showMessage("Erreur: Critère ou base de données non prête.");
+                return;
+            }
+            try {
+                const q = query(collection(db, `artifacts/${canvasAppId}/users/${currentUserId}/customCriteria`), where("name", "==", criterionName));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const docToDelete = querySnapshot.docs[0];
+                    await deleteDoc(doc(db, `artifacts/${canvasAppId}/users/${currentUserId}/customCriteria`, docToDelete.id));
+                    showMessage("Critère supprimé !");
+                } else {
+                    showMessage("Critère introuvable.");
+                }
+            } catch (e) {
+                console.error("Erreur lors de la suppression du critère:", e);
+                showMessage("Erreur lors de la suppression du critère.");
+            }
+        };
 
         const handleAddFriend = async () => {
             const newFriendName = newFriendNameInput.value.trim();
@@ -247,13 +518,13 @@
                 showMessage("Veuillez entrer un nom pour l'ami.");
                 return;
             }
-            if (friends.some(f => f.name.toLowerCase() === newFriendName.toLowerCase())) {
+            if (myFriends.some(f => f.name.toLowerCase() === newFriendName.toLowerCase())) {
                 showMessage("Cet ami existe déjà !");
                 return;
             }
 
             try {
-                const initialRatings = criteria.reduce((acc, criterion) => {
+                const initialRatings = customCriteria.reduce((acc, criterion) => {
                     acc[criterion] = 0;
                     return acc;
                 }, {});
@@ -262,6 +533,7 @@
                     name: newFriendName,
                     criteriaRatings: initialRatings,
                     comments: [],
+                    isPublic: false, // Default to private
                     createdAt: new Date(),
                 });
                 newFriendNameInput.value = '';
@@ -280,7 +552,7 @@
             }
             try {
                 const friendRef = doc(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`, friendId);
-                const friendToUpdate = friends.find(f => f.id === friendId);
+                const friendToUpdate = myFriends.find(f => f.id === friendId);
 
                 if (friendToUpdate) {
                     const updatedCriteriaRatings = {
@@ -290,6 +562,12 @@
                     await updateDoc(friendRef, {
                         criteriaRatings: updatedCriteriaRatings
                     });
+                    // If friend is public, also update the public version
+                    if (friendToUpdate.isPublic) {
+                        await updateDoc(doc(db, `artifacts/${canvasAppId}/public/data/sharedFriends`, friendId), {
+                            criteriaRatings: updatedCriteriaRatings
+                        });
+                    }
                     showMessage("Notation mise à jour !");
                 }
             } catch (e) {
@@ -305,7 +583,16 @@
                 return;
             }
             try {
+                // Delete from user's private collection
                 await deleteDoc(doc(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`, friendId));
+
+                // Also delete from public collection if it exists there
+                const publicFriendRef = doc(db, `artifacts/${canvasAppId}/public/data/sharedFriends`, friendId);
+                const friendInPublic = publicFriends.find(f => f.id === friendId);
+                if (friendInPublic) {
+                     await deleteDoc(publicFriendRef);
+                }
+
                 showMessage("Ami supprimé !");
             } catch (e) {
                 console.error("Erreur lors de la suppression de l'ami:", e);
@@ -325,7 +612,7 @@
 
             try {
                 const friendRef = doc(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`, friendId);
-                const friendToUpdate = friends.find(f => f.id === friendId);
+                const friendToUpdate = myFriends.find(f => f.id === friendId);
 
                 if (friendToUpdate) {
                     const updatedComments = [
@@ -340,6 +627,13 @@
                     await updateDoc(friendRef, {
                         comments: updatedComments
                     });
+                    // If friend is public, also update comments in the public version
+                    if (friendToUpdate.isPublic) {
+                        await updateDoc(doc(db, `artifacts/${canvasAppId}/public/data/sharedFriends`, friendId), {
+                            comments: updatedComments
+                        });
+                    }
+
                     if (commentTextarea) {
                         commentTextarea.value = ''; // Clear the input
                     }
@@ -350,6 +644,49 @@
                 showMessage("Erreur lors de l'ajout du commentaire.");
             }
         };
+
+        const handleShareToggle = async (event) => {
+            const friendId = event.target.dataset.friendId;
+            const isPublic = event.target.checked; // new public status
+            if (!db || !currentUserId) {
+                showMessage("Erreur: Base de données non prête.");
+                event.target.checked = !isPublic; // Revert checkbox state
+                return;
+            }
+
+            try {
+                const friendRef = doc(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`, friendId);
+                const friendToUpdate = myFriends.find(f => f.id === friendId);
+
+                if (friendToUpdate) {
+                    // Update private friend's isPublic status
+                    await updateDoc(friendRef, { isPublic: isPublic });
+
+                    const publicFriendRef = doc(db, `artifacts/${canvasAppId}/public/data/sharedFriends`, friendId);
+                    if (isPublic) {
+                        // Copy data to public collection (or update if already there)
+                        await setDoc(publicFriendRef, {
+                            name: friendToUpdate.name,
+                            criteriaRatings: friendToUpdate.criteriaRatings,
+                            comments: friendToUpdate.comments,
+                            creatorUserId: currentUserId,
+                            originalFriendId: friendId, // Keep reference to original ID
+                            createdAt: friendToUpdate.createdAt // Keep original creation time
+                        });
+                        showMessage(`'${friendToUpdate.name}' partagé publiquement !`);
+                    } else {
+                        // Remove from public collection
+                        await deleteDoc(publicFriendRef);
+                        showMessage(`'${friendToUpdate.name}' est maintenant privé.`);
+                    }
+                }
+            } catch (e) {
+                console.error("Erreur lors du changement de statut de partage:", e);
+                showMessage("Erreur lors du changement de statut de partage.");
+                event.target.checked = !isPublic; // Revert checkbox state on error
+            }
+        };
+
 
         // --- Initialization ---
 
@@ -362,12 +699,17 @@
                 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
                 onAuthStateChanged(auth, async (user) => {
+                    // Clear previous Firestore listeners when auth state changes
+                    unsubscribeFirestore.forEach(unsub => unsub());
+                    unsubscribeFirestore = [];
+
                     if (user) {
                         currentUserId = user.uid;
                         userIdDisplay.textContent = currentUserId;
-                        // Now that we have a userId, set up the Firestore listener
-                        setupFirestoreListener();
+                        updateAuthUI(user);
+                        setupFirestoreListeners();
                     } else {
+                        // Attempt anonymous login if no user is present
                         if (initialAuthToken) {
                             try {
                                 await signInWithCustomToken(auth, initialAuthToken);
@@ -402,39 +744,69 @@
             }
         };
 
-        const setupFirestoreListener = () => {
+        const setupFirestoreListeners = () => {
             if (!db || !currentUserId) return;
 
-            const friendsCollectionRef = collection(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`);
-            const q = query(friendsCollectionRef);
+            // Listener for Custom Criteria
+            const customCriteriaColRef = collection(db, `artifacts/${canvasAppId}/users/${currentUserId}/customCriteria`);
+            const unsubCustomCriteria = onSnapshot(customCriteriaColRef, (snapshot) => {
+                const fetchedCustomCriteria = snapshot.docs.map(doc => doc.data().name);
+                customCriteria = [...new Set(["Humour", "Soutien", "Fiabilité", "Gentillesse", ...fetchedCustomCriteria])];
+                renderCriteriaList();
+                renderFriendLists();
+            }, (err) => {
+                console.error("Erreur lors de la récupération des critères personnalisés:", err);
+                showMessage("Impossible de charger les critères personnalisés.");
+            });
+            unsubscribeFirestore.push(unsubCustomCriteria);
 
-            onSnapshot(q, (snapshot) => {
-                friends = snapshot.docs.map(doc => ({
+
+            // Listener for My Friends (private + my public ones)
+            const myFriendsColRef = collection(db, `artifacts/${canvasAppId}/users/${currentUserId}/friends`);
+            const unsubMyFriends = onSnapshot(myFriendsColRef, (snapshot) => {
+                myFriends = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
                     comments: doc.data().comments || []
                 }));
-                renderFriendList(); // Re-render the list with updated data
+                renderFriendLists();
                 isLoading = false;
                 renderAppStatus();
             }, (err) => {
-                console.error("Erreur lors de la récupération des amis:", err);
-                appError = "Impossible de charger les amis. Veuillez réessayer.";
+                console.error("Erreur lors de la récupération de mes amis:", err);
+                appError = "Impossible de charger mes amis. Veuillez réessayer.";
                 isLoading = false;
                 renderAppStatus();
             });
+            unsubscribeFirestore.push(unsubMyFriends);
+
+
+            // Listener for Public Friends (from all users)
+            const publicFriendsColRef = collection(db, `artifacts/${canvasAppId}/public/data/sharedFriends`);
+            const unsubPublicFriends = onSnapshot(publicFriendsColRef, (snapshot) => {
+                publicFriends = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    comments: doc.data().comments || []
+                }));
+                renderFriendLists();
+                isLoading = false;
+                renderAppStatus();
+            }, (err) => {
+                console.error("Erreur lors de la récupération des amis publics:", err);
+                showMessage("Impossible de charger les amis publics.");
+            });
+            unsubscribeFirestore.push(unsubPublicFriends);
         };
 
         const renderAppStatus = () => {
             if (isLoading) {
-                // Display loading state (can be a spinner or text)
                 document.body.innerHTML = `
                     <div class="flex items-center justify-center min-h-screen bg-gray-100 font-inter">
                         <div class="text-xl text-gray-700">Chargement de l'application...</div>
                     </div>
                 `;
             } else if (appError) {
-                // Display error state
                 document.body.innerHTML = `
                     <div class="flex items-center justify-center min-h-screen bg-red-100 font-inter">
                         <div class="text-xl text-red-700 p-4 rounded-lg shadow-md">${appError}</div>
@@ -442,30 +814,43 @@
                 `;
             } else {
                 // If not loading and no error, assume main content is ready.
-                // Re-attach main elements to body if they were removed by error/loading state.
-                // A better approach for a production app would be to toggle visibility or use a dedicated loading/error overlay.
-                // For this example, we assume the initial HTML structure is in place and just update parts of it.
-                // If this is the initial load without error, the body HTML structure will already be there.
-                // If it was in an error/loading state, we would need to rebuild the main HTML.
-                // For simplicity, we just ensure elements are visible and update dynamic content.
-                document.getElementById('userIdDisplay').textContent = currentUserId;
-                renderFriendList(); // Ensure friend list is rendered
+                // We ensure the initial HTML body structure is always present
+                // and just update its children or hide/show specific sections.
+                userIdDisplay.textContent = currentUserId; // Always update User ID
+                renderCriteriaList(); // Ensure criteria list is rendered
+                renderFriendLists(); // Ensure friend lists are rendered
             }
         };
 
         // Attach global event listeners for static elements
         addFriendButton.addEventListener('click', handleAddFriend);
+        addCriterionButton.addEventListener('click', handleAddCriterion);
 
-        // Event delegation for dynamic elements (delete, stars, add comment)
-        friendListContainer.addEventListener('click', (event) => {
+        // Auth Buttons
+        registerButton.addEventListener('click', handleRegister);
+        loginButton.addEventListener('click', handleLogin);
+        logoutButton.addEventListener('click', handleLogout);
+
+
+        // Event delegation for dynamic elements (delete friend, stars, add comment, delete criterion, share toggle)
+        document.body.addEventListener('click', (event) => {
+            // Delete friend button
             if (event.target.classList.contains('delete-friend-button')) {
                 handleDeleteFriend(event);
-            } else if (event.target.classList.contains('add-comment-button')) {
+            }
+            // Add comment button
+            else if (event.target.classList.contains('add-comment-button')) {
                 handleAddComment(event);
             }
-            // Star rating clicks are handled by their individual listeners attached in createStarRatingElement
+            // Delete criterion button
+            else if (event.target.classList.contains('delete-criterion-button')) {
+                handleDeleteCriterion(event);
+            }
+            // Share toggle checkbox
+            else if (event.target.id.startsWith('shareToggle-')) {
+                handleShareToggle(event);
+            }
         });
-
     </script>
 </body>
 </html>
