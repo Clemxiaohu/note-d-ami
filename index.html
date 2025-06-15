@@ -153,6 +153,9 @@
         let db;
         let auth;
         let currentUserId = null;
+        let isAdmin = false; // Flag to determine admin status
+        const ADMIN_EMAIL = 'clement.huynhfr@gmail.com'; // Admin email address
+
         let unsubscribeFirestore = []; // To store unsubscribe functions for Firestore listeners
 
         // Application state (plain JavaScript variables)
@@ -171,7 +174,7 @@
         const noMyFriendsMessage = document.getElementById('noMyFriendsMessage');
         const publicFriendsGrid = document.getElementById('publicFriendsGrid');
         const noPublicFriendsMessage = document.getElementById('noPublicFriendsMessage');
-        const messageModal = document.getElementById('messageModal'); // Corrected variable name
+        const messageModal = document.getElementById('messageModal');
         const modalMessageText = document.getElementById('modalMessageText');
 
         const newCriterionInput = document.getElementById('newCriterionInput');
@@ -198,12 +201,12 @@
             modalMessageText.textContent = message;
             messageModal.classList.remove('hidden');
             setTimeout(() => {
-                messageModal.classList.add('hidden'); // Corrected variable name
+                messageModal.classList.add('hidden'); // Corrected from 'modalMessage' to 'messageModal'
             }, 3000);
         };
 
         const calculateAverageRating = (criteriaRatings) => {
-            if (!criteriaRatings) return 0; // Handle case where ratings might be undefined
+            if (!criteriaRatings) return 0;
             const ratings = Object.values(criteriaRatings);
             if (ratings.length === 0) return 0;
             const sum = ratings.reduce((acc, val) => acc + val, 0);
@@ -226,8 +229,8 @@
                 authInputs.classList.remove('hidden');
                 registerButton.classList.remove('hidden');
                 loginButton.classList.remove('hidden');
-                logoutButton.classList.add('hidden'); // No logout button for anonymous unless user explicitly logs out
-                currentUserStatus.classList.add('hidden'); // No email to show
+                logoutButton.classList.add('hidden');
+                currentUserStatus.classList.add('hidden');
                 showMessage("Connecté en mode anonyme");
             } else {
                 // Not logged in (shouldn't happen with anonymous fallback, but for completeness)
@@ -243,8 +246,7 @@
         // --- Render Functions ---
 
         const renderCriteriaList = () => {
-            criteriaListDiv.innerHTML = ''; // Clear existing content
-            // Only show truly custom ones in the management list
+            criteriaListDiv.innerHTML = '';
             const customOnlyCriteria = customCriteria.filter(criterion => !["Humour", "Soutien", "Fiabilité", "Gentillesse"].includes(criterion));
 
             if (customOnlyCriteria.length === 0) {
@@ -272,7 +274,7 @@
             } else {
                 noMyFriendsMessage.classList.add('hidden');
                 myFriends.forEach(friend => {
-                    myFriendsGrid.appendChild(createFriendCard(friend, true)); // true indicates it's "My Friend" card
+                    myFriendsGrid.appendChild(createFriendCard(friend, true, isAdmin));
                 });
             }
 
@@ -283,7 +285,7 @@
             } else {
                 noPublicFriendsMessage.classList.add('hidden');
                 publicFriends.forEach(friend => {
-                    publicFriendsGrid.appendChild(createFriendCard(friend, false)); // false indicates it's a "Public Friend" card
+                    publicFriendsGrid.appendChild(createFriendCard(friend, false, isAdmin));
                 });
             }
         };
@@ -298,22 +300,20 @@
                     i <= rating ? 'text-yellow-400 scale-105' : 'text-gray-300'
                 }`;
                 button.setAttribute('aria-label', `Note ${i} étoile sur 5 pour ${criterionName}`);
-                // Only allow rating change on the user's own friends
-                if (isMyFriendCard) {
+                if (isMyFriendCard) { // Only allow rating change on the user's own friends
                     button.dataset.friendId = friendId;
                     button.dataset.criterionName = criterionName;
                     button.dataset.starValue = i;
                     button.addEventListener('click', handleStarRatingClick);
                 } else {
-                    // Disable clicks for public friends (read-only)
-                    button.style.cursor = 'default';
+                    button.style.cursor = 'default'; // Disable clicks for public friends (read-only)
                 }
                 container.appendChild(button);
             }
             return container;
         };
 
-        const createFriendCard = (friend, isMyFriendCard) => {
+        const createFriendCard = (friend, isMyFriendCard, isAdminUser) => {
             const friendCard = document.createElement('div');
             friendCard.className = 'bg-white p-6 rounded-xl shadow-lg border border-blue-200 transform transition-transform duration-300 hover:scale-[1.02]';
             friendCard.dataset.friendId = friend.id;
@@ -336,7 +336,7 @@
             const headerContent = isMyFriendCard ? `
                 <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
                     <h3 class="text-3xl font-bold text-gray-800">${friend.name}</h3>
-                    <button class="delete-friend-button text-red-500 hover:text-red-700 text-2xl" aria-label="Supprimer ${friend.name}" data-friend-id="${friend.id}">
+                    <button class="delete-friend-button text-red-500 hover:text-red-700 text-2xl" aria-label="Supprimer ${friend.name}" data-friend-id="${friend.id}" data-is-my-friend="true">
                         &times;
                     </button>
                 </div>
@@ -344,6 +344,7 @@
                 <div class="flex items-center mb-4 pb-2 border-b border-gray-200">
                     <h3 class="text-3xl font-bold text-gray-800 mr-4">${friend.name}</h3>
                     <span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">Public</span>
+                    ${isAdminUser ? `<button class="delete-public-friend-button text-red-500 hover:text-red-700 text-2xl ml-auto" aria-label="Supprimer ami public ${friend.name}" data-friend-id="${friend.id}" data-is-public-friend="true">&times;</button>` : ''}
                 </div>
                 <p class="text-gray-600 text-sm mb-4">Créé par: <span class="font-mono text-blue-600 break-all text-xs">${friend.creatorUserId}</span></p>
             `;
@@ -455,8 +456,6 @@
             try {
                 await signOut(auth);
                 showMessage("Déconnexion réussie !");
-                // After logout, Firebase will trigger onAuthStateChanged with null user,
-                // which will then sign in anonymously again.
             } catch (error) {
                 console.error("Erreur de déconnexion:", error);
                 showMessage(`Erreur de déconnexion: ${error.message}`);
@@ -600,6 +599,25 @@
             }
         };
 
+        // New function for admin to delete public friends
+        const handleAdminDeletePublicFriend = async (event) => {
+            const friendId = event.target.dataset.friendId;
+            if (!db || !currentUserId || !isAdmin) { // Ensure only admins can trigger this
+                showMessage("Accès refusé. Vous n'êtes pas administrateur.");
+                return;
+            }
+
+            try {
+                // Delete ONLY from the public collection
+                await deleteDoc(doc(db, `artifacts/${canvasAppId}/public/data/sharedFriends`, friendId));
+                showMessage("Ami public supprimé par l'administrateur !");
+            } catch (e) {
+                console.error("Erreur lors de la suppression de l'ami public par l'administrateur:", e);
+                showMessage("Erreur lors de la suppression de l'ami public.");
+            }
+        };
+
+
         const handleAddComment = async (event) => {
             const friendId = event.target.dataset.friendId;
             const commentTextarea = document.querySelector(`.add-comment-textarea[data-friend-id="${friendId}"]`);
@@ -706,6 +724,7 @@
                     if (user) {
                         currentUserId = user.uid;
                         userIdDisplay.textContent = currentUserId;
+                        isAdmin = user.email === ADMIN_EMAIL; // Set admin flag based on email
                         updateAuthUI(user);
                         setupFirestoreListeners();
                     } else {
@@ -813,12 +832,9 @@
                     </div>
                 `;
             } else {
-                // If not loading and no error, assume main content is ready.
-                // We ensure the initial HTML body structure is always present
-                // and just update its children or hide/show specific sections.
-                userIdDisplay.textContent = currentUserId; // Always update User ID
-                renderCriteriaList(); // Ensure criteria list is rendered
-                renderFriendLists(); // Ensure friend lists are rendered
+                userIdDisplay.textContent = currentUserId;
+                renderCriteriaList();
+                renderFriendLists();
             }
         };
 
@@ -832,23 +848,18 @@
         logoutButton.addEventListener('click', handleLogout);
 
 
-        // Event delegation for dynamic elements (delete friend, stars, add comment, delete criterion, share toggle)
+        // Event delegation for dynamic elements
         document.body.addEventListener('click', (event) => {
-            // Delete friend button
             if (event.target.classList.contains('delete-friend-button')) {
                 handleDeleteFriend(event);
-            }
-            // Add comment button
-            else if (event.target.classList.contains('add-comment-button')) {
+            } else if (event.target.classList.contains('add-comment-button')) {
                 handleAddComment(event);
-            }
-            // Delete criterion button
-            else if (event.target.classList.contains('delete-criterion-button')) {
+            } else if (event.target.classList.contains('delete-criterion-button')) {
                 handleDeleteCriterion(event);
-            }
-            // Share toggle checkbox
-            else if (event.target.id.startsWith('shareToggle-')) {
+            } else if (event.target.id.startsWith('shareToggle-')) {
                 handleShareToggle(event);
+            } else if (event.target.classList.contains('delete-public-friend-button')) { // New admin delete button
+                handleAdminDeletePublicFriend(event);
             }
         });
     </script>
